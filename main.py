@@ -9,14 +9,14 @@ app = Client("message_handler_bot", api_id=API_ID, api_hash=API_HASH, bot_token=
 @app.on_message(filters.command("start"))
 async def start_command(bot, message):
     try:
-        await message.reply_video(
-            video="https://files.catbox.moe/qdtfhq.mp4",
+        await message.reply_photo(
+            photo="https://files.catbox.moe/k2l5a8.jpg",
             caption=(
-                "🌟 Welcome to Healix AI – Your Virtual Health Companion! 🌟\n\n👨‍⚕️ What Can I Do?\n"
-                "🔹 Analyze your symptoms\n"
-                "🔹 Predict potential diseases\n🔹 Provide remedies, precautions, and wellness tips\n\n🔹 Provide remedies, precautions, and wellness tips\n\n"
-                "✨ How Does It Work?\n✅ Simple & Quick! Just type in your symptoms, and I'll provide accurate, AI-powered health insights instantly!\n\n"
-                "Let’s make your health journey smarter, faster, and easier! 💖\n\n🌐 Stay Connected with Us!\n[🌍 Website](https://healixai.tech) | [💬 Telegram](https://t.me/HealixAi) | [🐦 Twitter](https://x.com/Healix__AI)."
+                "🌟 🌟 Welcome to Healix AI Fitness Bot – Your Ultimate Fitness Companion! 🌟\n\n👨‍⚕️ What Can I Help With?\n"
+                "🔹 Guide you through beginner fitness steps.\n"
+                "🔹 Answer all your fitness-related questions.\n🔹 Create personalized daily fitness goals and diet plans.\n\n"
+                "✨ How Does It Work?\n✅ It’s simple! Share your fitness needs, and I’ll deliver AI-driven insights tailored just for you—instantly and effortlessly.\n\n"
+                "💪 Let’s elevate your fitness journey together—smarter, faster, and better! 💖"
             ),
             parse_mode=ParseMode.MARKDOWN
         )
