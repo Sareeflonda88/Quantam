@@ -62,7 +62,7 @@ async def handle_private_query(client, message):
     await client.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
 
     # Use the API to get medical data
-    api_url = f"https://medical.codesearch.workers.dev/?question={query}"
+    api_url = f"https://fitness.codesearch.workers.dev/?question={query}"
     try:
         response = requests.get(api_url)
         if response.status_code == 200:
