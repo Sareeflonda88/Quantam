@@ -5,7 +5,6 @@ import json
 import time
 import secrets
 import asyncio
-from aiohttp import web
 import logging
 
 # Pyrogram bot configuration
@@ -47,14 +46,13 @@ Here’s what you can do:
 
 🔹 Analyze your data — Upload your CSV logs for instant anomaly detection and optimization.
 🔹 Optimize paths/tasks — Upload grid maps or task lists to get quantum-accelerated solutions.
-🔹 Integrate with your robot — Secure webhook for direct robot-to-bot analysis.
 🔹 AI Q&A — Ask anything about quantum-inspired AI, robotics, or implementation advice (powered by AI).
 🔹 Get scheduled reports — Subscribe for weekly summaries and actionable tips.
 
 Start by selecting an option below or use the menu commands.
 
 ➕ Tips:
-- Use /getid to find your chat ID (for API/robot integration)
+- Use /getid to find your chat ID
 - Use /webhooksecret to get or reset your secure webhook secret
 - Use /unsubscribe to stop reports anytime
 
@@ -105,49 +103,14 @@ def get_back_button():
 def get_main_menu():
     return InlineKeyboardMarkup(
         [
-            [
-                InlineKeyboardButton("Analyze Data", callback_data="analyze_data"),
-                InlineKeyboardButton("Optimize Tasks", callback_data="optimize_tasks")
-            ],
-            [
-                InlineKeyboardButton("Robot Integration", callback_data="robot_integration"),
-                InlineKeyboardButton("AI Q&A", callback_data="ai_qa")
-            ],
-            [
-                InlineKeyboardButton("Subscribe Reports", callback_data="subscribe_reports"),
-                InlineKeyboardButton("Get Chat ID", callback_data="get_chat_id")
-            ],
-            [
-                InlineKeyboardButton("Webhook Secret", callback_data="webhook_secret")
-            ]
+            [InlineKeyboardButton("📈 Analyze Data (CSV)", callback_data="analyze_data")],
+            [InlineKeyboardButton("🗺️ Pathfinding/Optimization", callback_data="optimize_tasks")],
+            [InlineKeyboardButton("💬 Ask Quantum AI (AI)", callback_data="ai_qa")],
+            [InlineKeyboardButton("⏰ Subscribe For Weekly Reports", callback_data="subscribe_reports")],
+            [InlineKeyboardButton("💡 About Quantum-Inspired AI", callback_data="subscribe_reports")],
+            [InlineKeyboardButton("🔑 My Chat ID & Webhook Secrets", callback_data="get_chat_id")]
         ]
     )
-
-# Webhook endpoint handler
-async def webhook_handler(request):
-    try:
-        data = await request.json()
-        chat_id = data.get('chat_id')
-        webhook_secret = data.get('webhook_secret')
-        payload = data.get('payload')
-
-        if not all([chat_id, webhook_secret, payload]):
-            return web.json_response({'error': 'Missing required fields'}, status=400)
-
-        users = load_data()
-        if chat_id not in users or users[chat_id]['webhook_secret'] != webhook_secret:
-            return web.json_response({'error': 'Invalid chat_id or webhook_secret'}, status=401)
-
-        # Process payload (example: send to user)
-        await app.send_message(
-            chat_id=int(chat_id),
-            text=f"Received webhook data:\n\n{json.dumps(payload, indent=2)}"
-        )
-        return web.json_response({'status': 'success'}, status=200)
-
-    except Exception as e:
-        logger.error(f"Webhook error: {str(e)}")
-        return web.json_response({'error': str(e)}, status=500)
 
 # Start command handler
 @app.on_message(filters.command("start"))
@@ -185,7 +148,9 @@ async def regen_secret_command(client: Client, message: Message):
 @app.on_message(filters.command("getid"))
 async def get_id_command(client: Client, message: Message):
     chat_id = str(message.chat.id)
-    await message.reply(f"Your Telegram chat ID:\n\n{chat_id}", reply_markup=get_back_button())
+    data = load_data()
+    secret = data.get(chat_id, {}).get('webhook_secret', 'Not set')
+    await message.reply(f"Your Telegram chat ID:\n{chat_id}\n\nYour webhook secret:\n{secret}", reply_markup=get_back_button())
 
 # Webhook secret command handler
 @app.on_message(filters.command("webhooksecret"))
@@ -243,18 +208,6 @@ Send your file now.
         """
         await callback_query.message.edit(message, reply_markup=get_back_button())
     
-    elif data == "robot_integration":
-        secret = users.get(chat_id, {}).get('webhook_secret', 'Not set')
-        message = f"""
-🔗 Robot Integration
-
-Integrate your robot with our secure webhook for real-time analysis.
-Your Telegram chat ID: {chat_id}
-Your webhook secret: {secret}
-Use these in your robot's POST requests to the webhook URL.
-        """
-        await callback_query.message.edit(message, reply_markup=get_back_button())
-    
     elif data == "ai_qa":
         message = """
 💬 Ask Anything about Quantum-Inspired AI or Robotics!
@@ -282,23 +235,6 @@ Type your question below:
 🔐 Your personal webhook secret:
 {secret}
 
-Your robot/service must send both these values for secure webhook data delivery.
-
-To regenerate your secret, use /regensecret
-        """
-        await callback_query.message.edit(message, reply_markup=get_back_button())
-    
-    elif data == "webhook_secret":
-        secret = users.get(chat_id, {}).get('webhook_secret', 'Not set')
-        message = f"""
-🔑 Your Telegram chat ID:
-{chat_id}
-
-🔐 Your personal webhook secret:
-{secret}
-
-Your robot/service must send both these values for secure webhook data delivery.
-
 To regenerate your secret, use /regensecret
         """
         await callback_query.message.edit(message, reply_markup=get_back_button())
@@ -322,20 +258,8 @@ async def handle_message(client, message):
     except Exception as e:
         await message.reply(f"An error occurred: {str(e)}")
 
-# Start webhook server
-async def start_webhook_server():
-    webhook_app = web.Application()
-    webhook_app.router.add_post('/webhook', webhook_handler)
-    runner = web.AppRunner(webhook_app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8080)
-    await site.start()
-    logger.info("Webhook server started on http://0.0.0.0:8080/webhook")
-
-# Main function to run bot and webhook server
+# Main function to run bot
 async def main():
-    # Start webhook server
-    await start_webhook_server()
     # Start Pyrogram client
     await app.start()
 
