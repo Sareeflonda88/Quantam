@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Telegram Bot Configuration
 app = Client(
-    "QuantumRoboticsBot",
+    name="QuantumRoboticsBot",
     api_id="28362125",
     api_hash="c750e5872a2af51801d9b449983f4c84",
     bot_token="7038637559:AAFmvn2kmNuN2MukROcmc12B2jBgU8WuJGU"
