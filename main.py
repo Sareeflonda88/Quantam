@@ -323,7 +323,7 @@ async def handle_message(client, message):
         await message.reply(response, reply_markup=get_main_menu())
     else:
         # Default behavior: reply with welcome message and main menu
-        await message.reply(WELCOME_MESSAGE, reply_markup=get_main_menu())
+        await message.reply("Use the menu or type /start.", reply_markup=get_main_menu())
 
 # Main function to run bot
 async def main():
