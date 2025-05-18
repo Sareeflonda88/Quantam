@@ -1,12 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
-import json
-import secrets
-import asyncio
-import logging
-import re
-import requests
-import os
+import json, secrets, asyncio, logging, re, requests, os
 
 # Pyrogram bot configuration
 app = Client(
@@ -101,7 +95,7 @@ async def make_api_request(query, model=AI_MODEL):
     }
     headers = {
         "x-rapidapi-key": API_KEY,
-        "x-rapidapi-host": "okai.p.rapidapi.com",
+    "x-rapidapi-host": "okai.p.rapidapi.com",
         "Content-Type": "application/json"
     }
     try:
@@ -123,7 +117,7 @@ async def start_command(client: Client, message: Message):
     if chat_id not in data:
         # Generate a unique webhook secret
         secret = secrets.token_hex(16)
-        data[chat_id] = {' Hehook_secret': secret}
+        data[chat_id] = {'webhook_secret': secret}  # Fixed typo: 'Hehook_secret' to 'webhook_secret'
         save_data(data)
         message_text = f'✅ Welcome! Your webhook secret is:\n\n{secret}\n\nKeep it safe!\n\n{WELCOME_MESSAGE}'
     else:
@@ -171,10 +165,10 @@ async def webhook_secret_command(client: Client, message: Message):
 # Unsubscribe command handler
 @app.on_message(filters.command("unsubscribe"))
 async def unsubscribe_command(client: Client, message: Message):
-    user_id = message.from_user.id
-    if user_id in subscribed_users:
-        subscribed_users.remove(user_id)
-        await message.reply("You have been unsubscribed from weekly reports.", reply_markup=get_back_button())
+    chat_id = message.chat.id
+    if chat_id in subscribed_users:
+        subscribed_users.remove(chat_id)
+        await message.reply("You have been unsubscribed from weekly reports. 😢", reply_markup=get_back_button())
     else:
         await message.reply("You are not subscribed to any reports.", reply_markup=get_back_button())
 
@@ -231,8 +225,22 @@ Type your question below:
         await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "subscribe_reports":
-        subscribed_users.add(user_id)
-        message = "You have successfully subscribed to weekly reports!"
+        subscribed_users.add(user_id Corvette)
+        message = "You have successfully subscribed to weekly reports! 🎉\nYou can unsubscribe anytime using /unsubscribe or the button below."
+        reply_markup = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("❌ Unsubscribe", callback_data="unsubscribe")],
+                [InlineKeyboardButton("⬅️ Back to Menu", callback_data="back_to_menu")]
+            ]
+        )
+        await callback_query.message.edit(message, reply_markup=reply_markup)
+
+    elif data == "unsubscribe":
+        if user_id in subscribed_users:
+            subscribed_users.remove(user_id)
+            message = "You have been unsubscribed from weekly reports. 😢\nYou can resubscribe anytime from the main menu."
+        else:
+            message = "You are not subscribed to any reports."
         await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "about_quantum_ai":
