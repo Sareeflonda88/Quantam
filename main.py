@@ -59,40 +59,6 @@ Start by selecting an option below or use the menu commands.
 📚 Need help? Just ask!
 """
 
-# Function to check if the message is related to quantum robotics
-def is_quantum_robotics_question(message):
-    keywords = ["quantum", "robotics", "quantum robotics", "qubit", "quantum computing", 
-                "quantum algorithm", "robotic control", "quantum sensor", "quantum mechanics"]
-    message_lower = message.lower()
-    return any(keyword in message_lower for keyword in keywords)
-
-# Function to call OKAI API
-def call_okai_api(user_message):
-    conn = http.client.HTTPSConnection("okai.p.rapidapi.com")
-    payload = json.dumps({
-        "messages": [{"role": "user", "content": user_message}]
-    })
-    headers = {
-        'x-rapidapi-key': "661048094dmshd422f34bffd5dc0p1d4d56jsn3bbc61e1a120",
-        'x-rapidapi-host': "okai.p.rapidapi.com",
-        'Content-Type': "application/json"
-    }
-    try:
-        time.sleep(1)  # Avoid rate limiting
-        conn.request("POST", "/v1/chat/completions", payload, headers)
-        res = conn.getresponse()
-        data = res.read()
-        response = json.loads(data.decode("utf-8"))
-        logger.info(f"Raw API response: {response}")
-        if 'response' in response:
-            return response['response']
-        else:
-            return f"Error: Unexpected API response structure. Raw response: {response}"
-    except Exception as e:
-        return f"Error: API call failed. Details: {str(e)}"
-    finally:
-        conn.close()
-
 # Back to Menu button
 def get_back_button():
     return InlineKeyboardMarkup(
@@ -223,8 +189,8 @@ Type your question below:
     
     elif data == "subscribe_reports":
         subscribed_users.add(user_id)
-        message = "Subscribed successfully! You'll receive weekly summaries and tips.\nUse /unsubscribe to stop reports anytime."
-        await callback_query.message.edit(message, reply_markup=get_back_button())
+        message = "You have successfully subscribed"
+        await callback_query.message.edit(message)
     
     elif data == "about_quantum_ai":
         message = """
@@ -254,22 +220,11 @@ To regenerate your secret, use /regensecret
 
     await callback_query.answer()
 
-# Handler for incoming messages
+# Handler for incoming text messages
 @app.on_message(filters.text & filters.private & ~filters.command(["start", "unsubscribe", "getid", "webhooksecret", "regensecret"]))
 async def handle_message(client, message):
-    user_message = message.text
-    try:
-        # Check if the message is related to quantum robotics
-        if not is_quantum_robotics_question(user_message):
-            await message.reply("Sorry, I only answer questions related to quantum robotics. Please ask a question about quantum robotics!")
-            return
-        
-        # Call OKAI API with user's message
-        response = call_okai_api(user_message)
-        # Reply with the API response
-        await message.reply(response)
-    except Exception as e:
-        await message.reply(f"An error occurred: {str(e)}")
+    # Reply with main menu buttons for any non-command text message
+    await message.reply(WELCOME_MESSAGE, reply_markup=get_main_menu())
 
 # Main function to run bot
 async def main():
