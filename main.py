@@ -1,167 +1,82 @@
-from pyrogram import Client, filters, idle
-from pyrogram.types import Message
-from pyrogram.enums import ChatAction
-import aiohttp
-import json
-import asyncio
-import logging
-import os
-from dotenv import load_dotenv
+import os, re, aiohttp, asyncio
+from pyrogram import Client, filters
 
-# Load environment variables (optional, for secure storage of sensitive data)
-load_dotenv()
+# Telegram Bot credentials (replace with your own)
+API_ID = "28362125"  # Get from my.telegram.org
+API_HASH = "c750e5872a2af51801d9b449983f4c84"  # Get from my.telegram.org
+BOT_TOKEN = "7038637559:AAFmvn2kmNuN2MukROcmc12B2jBgU8WuJGU"  # Get from @BotFather
 
-# Set up logging for debugging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+# RapidAPI credentials
+RAPID_API_KEY = "661048094dmshd422f34bffd5dc0p1d4d56jsn3bbc61e1a120"
+RAPID_API_HOST = "numbersapi.p.rapidapi.com"
+RAPID_API_BASE_URL = "https://numbersapi.p.rapidapi.com"
 
-# Telegram Bot Configuration
-app = Client(
-    name="QuantumRoboticsBot",
-    api_id=os.getenv("API_ID", "28362125"),  # Fallback to hardcoded value if not in .env
-    api_hash=os.getenv("API_HASH", "c750e5872a2af51801d9b449983f4c84"),
-    bot_token=os.getenv("BOT_TOKEN", "7038637559:AAFmvn2kmNuN2MukROcmc12B2jBgU8WuJGU")
-)
+# Initialize Pyrogram Client
+app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# RapidAPI Configuration
-RAPIDAPI_HOST = "okai.p.rapidapi.com"
-RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "661048094dmshd422f34bffd5dc0p1d4d56jsn3bbc61e1a120")
-RAPIDAPI_ENDPOINT = "/v1/chat/completions"
-
-# Welcome photo URL (publicly available quantum robotics image)
-WELCOME_PHOTO_URL = "https://files.catbox.moe/u0ujif.jpg"
-
-async def send_typing_action(chat_id):
-    """Send typing action to indicate the bot is processing."""
-    try:
-        await app.send_chat_action(chat_id, ChatAction.TYPING)
-        await asyncio.sleep(1)  # Simulate processing time
-    except Exception as e:
-        logger.error(f"Error sending typing action: {e}")
-
-async def query_rapidapi(message: str) -> str:
-    """Query the RapidAPI for a response to the user's message with retry logic."""
-    retries = 3
-    for attempt in range(retries):
+# Helper function to make RapidAPI request
+async def make_rapid_api_request(number):
+    url = f"{RAPID_API_BASE_URL}/{number}/math"
+    headers = {
+        "X-RapidAPI-Key": RAPID_API_KEY,
+        "X-RapidAPI-Host": RAPID_API_HOST
+    }
+    async with aiohttp.ClientSession() as session:
         try:
-            async with aiohttp.ClientSession() as session:
-                payload = {
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "You are a quantum robotics expert. Provide accurate and concise information about quantum robotics."
-                        },
-                        {
-                            "role": "user",
-                            "content": message
-                        }
-                    ]
-                }
-                headers = {
-                    'x-rapidapi-key': RAPIDAPI_KEY,
-                    'x-rapidapi-host': RAPIDAPI_HOST,
-                    'Content-Type': "application/json"
-                }
-                async with session.post(
-                    f"https://{RAPIDAPI_HOST}{RAPIDAPI_ENDPOINT}",
-                    json=payload,
-                    headers=headers
-                ) as response:
-                    logger.info(f"RapidAPI response status: {response.status}")
-                    response_text = await response.text()
-                    logger.info(f"RapidAPI response body: {response_text}")
-                    if response.status == 429:  # Rate limit
-                        logger.warning(f"Rate limit hit, retrying in {2 ** attempt} seconds...")
-                        await asyncio.sleep(2 ** attempt)  # Exponential backoff
-                        continue
-                    if response.status != 200:
-                        logger.error(f"RapidAPI returned status {response.status}: {response_text}")
-                        return "Sorry, I couldn't process your request. Please try again."
-                    try:
-                        data = json.loads(response_text)  # Explicitly parse JSON
-                        if "choices" in data and len(data["choices"]) > 0:
-                            content = data["choices"][0]["message"]["content"]
-                            if content:
-                                return content
-                            logger.error("Empty content in RapidAPI response")
-                            return "Sorry, I couldn't process your request. Please try again."
-                        logger.error(f"No choices found in RapidAPI response: {data}")
-                        return "Sorry, I couldn't process your request. Please try again."
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Failed to parse RapidAPI response as JSON: {e}")
-                        return "Sorry, I couldn't process your request due to a response error. Please try again."
+            async with session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    # Numbers API returns plain text for this endpoint
+                    return await response.text()
+                else:
+                    return {"error": f"API request failed with status {response.status}"}
         except Exception as e:
-            logger.error(f"Error querying RapidAPI (attempt {attempt + 1}/{retries}): {e}")
-            if attempt == retries - 1:
-                return "An error occurred while processing your request. Please try again later."
-    return "Sorry, I couldn't process your request due to rate limits or repeated errors. Please try again later."
+            return {"error": f"Exception occurred: {str(e)}"}
 
-# Start Command Handler
+# Start command handler
 @app.on_message(filters.command("start"))
-async def start_command(client: Client, message: Message):
-    """Handle the /start command with a welcome photo and message."""
-    await send_typing_action(message.chat.id)
-    
-    welcome_message = (
-        "🤖 Welcome to the Quantum Robotics Bot! 🤖\n\n"
-        "I'm here to answer all your questions about quantum robotics. "
-        "Ask me anything about quantum computing, robotics, or their exciting intersection!\n\n"
+async def start_command(client, message):
+    await message.reply_text(
+        "Hello! I'm a Telegram bot integrated with RapidAPI.\n"
+        "Send me a number, and I'll fetch a math fact about it!\n"
         "Use /help to see available commands."
     )
-    
-    try:
-        await message.reply_photo(
-            photo=WELCOME_PHOTO_URL,
-            caption=welcome_message
-        )
-    except Exception as e:
-        logger.error(f"Error sending welcome photo: {e}")
-        await message.reply_text(welcome_message)
 
-# Help Command Handler
+# Help command handler
 @app.on_message(filters.command("help"))
-async def help_command(client: Client, message: Message):
-    """Handle the /help command with usage instructions."""
-    await send_typing_action(message.chat.id)
-    
-    help_message = (
-        "📚 Quantum Robotics Bot Help 📚\n\n"
-        "Here's how to use me:\n"
-        "- /start: Start the bot and get a welcome message.\n"
-        "- /help: Show this help message.\n"
-        "- Send any text message to ask about quantum robotics!\n\n"
-        "Example: 'What is quantum robotics?' or 'How do quantum computers enhance robotics?'"
+async def help_command(client, message):
+    await message.reply_text(
+        "Available commands:\n"
+        "/start - Start the bot\n"
+        "/help - Show this help message\n"
+        "\nJust send a number (e.g., 42), and I'll get a math fact from the Numbers API!"
     )
+
+# Text message handler to process numbers
+@app.on_message(filters.text)
+async def text_handler(client, message):
+    # Extract the first number from the message using regex
+    text = message.text.strip()
+    match = re.search(r'\d+', text)
     
-    await message.reply_text(help_message)
-
-# Text Message Handler
-@app.on_message(filters.text & ~filters.command(["start", "help"]))
-async def handle_text(client: Client, message: Message):
-    """Handle general text messages by querying the RapidAPI."""
-    await send_typing_action(message.chat.id)
+    if not match:
+        await message.reply_text("Please send a number (e.g., 42) to get a math fact!")
+        return
     
-    user_message = message.text
-    response = await query_rapidapi(user_message)
-    try:
-        await message.reply_text(response)
-    except Exception as e:
-        logger.error(f"Error replying to message: {e}")
-        await message.reply_text("Sorry, I couldn't send a response. Please try again.")
+    number = match.group(0)
+    await message.reply_text(f"Fetching math fact for {number}, please wait...")
+    
+    result = await make_rapid_api_request(number)
+    
+    if isinstance(result, dict) and "error" in result:
+        await message.reply_text(f"Error: {result['error']}")
+    else:
+        await message.reply_text(f"Math Fact for {number}:\n{result}")
 
-# Error Handler
-@app.on_message(filters.all)
-async def error_handler(client: Client, message: Message):
-    """Catch any unhandled messages."""
-    try:
-        await message.reply_text("Sorry, I didn't understand that. Use /help for guidance.")
-    except Exception as e:
-        logger.error(f"Error in error handler: {e}")
+# Main function to run the bot
+async def main():
+    await app.start()
+    print("Bot is running...")
+    await app.idle()
 
-# Start the Bot
 if __name__ == "__main__":
-    logger.info("Starting Quantum Robotics Bot...")
-    app.run()
+    asyncio.run(main())
