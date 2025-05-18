@@ -123,7 +123,7 @@ async def start_command(client: Client, message: Message):
     if chat_id not in data:
         # Generate a unique webhook secret
         secret = secrets.token_hex(16)
-        data[chat_id] = {'webhook_secret': secret}
+        data[chat_id] = {' Hehook_secret': secret}
         save_data(data)
         message_text = f'✅ Welcome! Your webhook secret is:\n\n{secret}\n\nKeep it safe!\n\n{WELCOME_MESSAGE}'
     else:
@@ -277,6 +277,15 @@ async def handle_document(client, message):
         await message.reply("Please upload a valid CSV file.", reply_markup=get_back_button())
         return
 
+    # Send temporary "Asking AI..." message
+    temp_message = await message.reply("⏳ Asking AI...")
+
+    # Wait for 0.2 seconds
+    await asyncio.sleep(0.2)
+
+    # Delete the temporary message
+    await temp_message.delete()
+
     # Download the CSV file
     file_path = await message.download()
     try:
@@ -312,6 +321,15 @@ async def handle_message(client, message):
     state = user_states.get(chat_id)
 
     if state == "ai_qa":
+        # Send temporary "Asking AI..." message
+        temp_message = await message.reply("⏳ Asking AI...")
+
+        # Wait for 0.2 seconds
+        await asyncio.sleep(0.2)
+
+        # Delete the temporary message
+        await temp_message.delete()
+
         # Remove keywords "quantum" and "AI" (case-insensitive)
         query = message.text
         cleaned_query = re.sub(r'\bquantum\b|\bAI\b', '', query, flags=re.IGNORECASE).strip()
