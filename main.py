@@ -31,14 +31,23 @@ AI_MODEL = "quantum"  # Replace with the actual model name
 # Load and save user data
 def load_data():
     try:
-        with open(DATA_FILE, 'r') as f:
-            return json.load(f)
-    except:
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, 'r') as f:
+                return json.load(f)
+        return {}
+    except json.JSONDecodeError:
+        logger.error("Corrupted users.json file, starting with empty data")
+        return {}
+    except Exception as e:
+        logger.error(f"Error loading data: {e}")
         return {}
 
 def save_data(data):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+    try:
+        with open(DATA_FILE, 'w') as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        logger.error(f"Error saving data: {e}")
 
 # Welcome message
 WELCOME_MESSAGE = """
@@ -95,17 +104,20 @@ async def make_api_request(query, model=AI_MODEL):
     }
     headers = {
         "x-rapidapi-key": API_KEY,
-    "x-rapidapi-host": "okai.p.rapidapi.com",
+        "x-rapidapi-host": "okai.p.rapidapi.com",
         "Content-Type": "application/json"
     }
     try:
-        response = requests.post(BASE_URL, json=payload, headers=headers)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("response", "Sorry, I couldn't fetch the data.")
-        else:
-            return f"Failed to fetch data from the API. Status code: {response.status_code}"
+        response = requests.post(BASE_URL, json=payload, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        # Adjust this based on actual API response structure
+        return data.get("response", "Sorry, I couldn't fetch the data.")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API request failed: {e}")
+        return f"Failed to fetch data from the API: {str(e)}"
     except Exception as e:
+        logger.error(f"Unexpected error in API request: {e}")
         return f"An error occurred: {e}"
 
 # Start command handler
@@ -115,15 +127,13 @@ async def start_command(client: Client, message: Message):
     data = load_data()
 
     if chat_id not in data:
-        # Generate a unique webhook secret
         secret = secrets.token_hex(16)
-        data[chat_id] = {'webhook_secret': secret}  # Fixed typo: 'Hehook_secret' to 'webhook_secret'
+        data[chat_id] = {'webhook_secret': secret}
         save_data(data)
         message_text = f'✅ Welcome! Your webhook secret is:\n\n{secret}\n\nKeep it safe!\n\n{WELCOME_MESSAGE}'
     else:
         message_text = WELCOME_MESSAGE
 
-    # Reset user state on /start
     user_states[chat_id] = None
     await message.reply(message_text, reply_markup=get_main_menu())
 
@@ -134,7 +144,6 @@ async def regen_secret_command(client: Client, message: Message):
     data = load_data()
 
     if chat_id in data:
-        # Generate a new webhook secret
         new_secret = secrets.token_hex(16)
         data[chat_id]['webhook_secret'] = new_secret
         save_data(data)
@@ -177,11 +186,10 @@ async def unsubscribe_command(client: Client, message: Message):
 async def handle_callback_query(client, callback_query):
     data = callback_query.data
     user_id = callback_query.from_user.id
-    chat_id = str(callback_query.from_user.id)
+    chat_id = str(user_id)
     users = load_data()
 
     if data == "back_to_menu":
-        # Reset user state when going back to menu
         user_states[chat_id] = None
         await callback_query.message.edit(WELCOME_MESSAGE, reply_markup=get_main_menu())
         return
@@ -196,7 +204,7 @@ Example: timestamp,accel_x,accel_y,gyro,temperature
 
 After upload, you'll get a detailed summary.
         """
-        user_states[chat_id] = "analyze_data"  # Set state to expect CSV
+        user_states[chat_id] = "analyze_data"
         await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "optimize_tasks":
@@ -207,7 +215,7 @@ Upload a CSV with a grid map (0=open, 1=wall) or task allocation table.
 I'll use quantum-inspired Grover search to suggest an efficient path or assignment!
 Send your file now.
         """
-        user_states[chat_id] = "optimize_tasks"  # Set state to expect CSV
+        user_states[chat_id] = "optimize_tasks"
         await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "ai_qa":
@@ -221,11 +229,11 @@ Examples:
 
 Type your question below:
         """
-        user_states[chat_id] = "ai_qa"  # Set state to expect AI question
+        user_states[chat_id] = "ai_qa"
         await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "subscribe_reports":
-        subscribed_users.add(user_id Corvette)
+        subscribed_users.add(user_id)
         message = "You have successfully subscribed to weekly reports! 🎉\nYou can unsubscribe anytime using /unsubscribe or the button below."
         reply_markup = InlineKeyboardMarkup(
             [
@@ -285,41 +293,32 @@ async def handle_document(client, message):
         await message.reply("Please upload a valid CSV file.", reply_markup=get_back_button())
         return
 
-    # Send temporary "Asking AI..." message
     temp_message = await message.reply("⏳ Asking AI...")
-
-    # Wait for 0.2 seconds
     await asyncio.sleep(0.2)
-
-    # Delete the temporary message
     await temp_message.delete()
 
-    # Download the CSV file
     file_path = await message.download()
     try:
-        # Read CSV content
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             csv_content = f.read()
 
-        # Prepare query based on state
         if state == "analyze_data":
             query = f"Analyze this CSV data for anomalies and optimizations:\n{csv_content}"
         elif state == "optimize_tasks":
             query = f"Optimize this CSV grid map or task list using quantum-inspired algorithms:\n{csv_content}"
 
-        # Make API request
         reply = await make_api_request(query)
-
-        # Reply with API response
         await message.reply(reply, reply_markup=get_main_menu())
     except Exception as e:
+        logger.error(f"Error processing CSV: {e}")
         await message.reply(f"Error processing CSV: {e}", reply_markup=get_main_menu())
     finally:
-        # Clean up downloaded file
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            logger.error(f"Error deleting file {file_path}: {e}")
 
-    # Reset user state
     user_states[chat_id] = None
 
 # Handler for incoming text messages
@@ -329,32 +328,27 @@ async def handle_message(client, message):
     state = user_states.get(chat_id)
 
     if state == "ai_qa":
-        # Send temporary "Asking AI..." message
         temp_message = await message.reply("⏳ Asking AI...")
-
-        # Wait for 0.2 seconds
         await asyncio.sleep(0.2)
-
-        # Delete the temporary message
         await temp_message.delete()
 
-        # Remove keywords "quantum" and "AI" (case-insensitive)
         query = message.text
         cleaned_query = re.sub(r'\bquantum\b|\bAI\b', '', query, flags=re.IGNORECASE).strip()
-
-        # Make API request
+        
         response = await make_api_request(cleaned_query or query)
-
-        # Reply with API response
         await message.reply(response, reply_markup=get_main_menu())
+        user_states[chat_id] = None
     else:
-        # Default behavior: reply with welcome message and main menu
         await message.reply("Use the menu or type /start.", reply_markup=get_main_menu())
 
 # Main function to run bot
 async def main():
-    # Start Pyrogram client
-    await app.start()
+    try:
+        await app.start()
+        logger.info("Bot started successfully")
+    except Exception as e:
+        logger.error(f"Error starting bot: {e}")
+        raise
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
@@ -363,6 +357,8 @@ if __name__ == "__main__":
         loop.run_forever()
     except KeyboardInterrupt:
         loop.run_until_complete(app.stop())
-        loop.close()
+        logger.info("Bot stopped gracefully")
     except Exception as e:
-        logger.error(f"Error in main loop: {str(e)}")
+        logger.error(f"Error in main loop: {e}")
+    finally:
+        loop.close()
