@@ -103,12 +103,13 @@ def get_back_button():
 def get_main_menu():
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("📈 Analyze Data (CSV)", callback_data="analyze_data")],
-            [InlineKeyboardButton("🗺️ Pathfinding/Optimization", callback_data="optimize_tasks")],
-            [InlineKeyboardButton("💬 Ask Quantum AI (AI)", callback_data="ai_qa")],
-            [InlineKeyboardButton("⏰ Subscribe For Weekly Reports", callback_data="subscribe_reports")],
-            [InlineKeyboardButton("💡 About Quantum-Inspired AI", callback_data="subscribe_reports")],
-            [InlineKeyboardButton("🔑 My Chat ID & Webhook Secrets", callback_data="get_chat_id")]
+            [],  # Empty first row
+            [InlineKeyboardButton("Analyze Data 📈", callback_data="analyze_data")],
+            [InlineKeyboardButton("Optimize Tasks 🗺️", callback_data="optimize_tasks")],
+            [InlineKeyboardButton("AI Q&A 💬", callback_data="ai_qa")],
+            [InlineKeyboardButton("Subscribe Reports 📬", callback_data="subscribe_reports")],
+            [InlineKeyboardButton("About Quantum-Inspired AI 💡", callback_data="about_quantum_ai")],
+            [InlineKeyboardButton("Get Chat ID & Secret 🔑", callback_data="get_chat_id")]
         ]
     )
 
@@ -224,6 +225,19 @@ Type your question below:
     elif data == "subscribe_reports":
         subscribed_users.add(user_id)
         message = "Subscribed successfully! You'll receive weekly summaries and tips.\nUse /unsubscribe to stop reports anytime."
+        await callback_query.message.edit(message, reply_markup=get_back_button())
+    
+    elif data == "about_quantum_ai":
+        message = """
+💡 About Quantum-Inspired AI
+
+- Entangled state evaluation
+- Probabilistic feedback loops
+- Quantum-style pathfinding (Grover search)
+
+Frameworks: TensorFlow Quantum, PennyLane, Qiskit
+For: robotics, automation, optimization, anomaly detection, etc.
+        """
         await callback_query.message.edit(message, reply_markup=get_back_button())
     
     elif data == "get_chat_id":
