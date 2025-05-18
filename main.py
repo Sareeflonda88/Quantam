@@ -33,9 +33,10 @@ user_states = {}
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Placeholder API endpoints (replace with real API)
+# Placeholder API endpoints (replace with real APIs)
 ANALYZE_API_URL = "https://api.quantro.ai/analyze"
 OPTIMIZE_API_URL = "https://api.quantro.ai/optimize"
+RELEVANCE_API_URL = "https://api.quantro.ai/relevance"
 API_TIMEOUT = 10  # Seconds
 
 # Load and save user data
@@ -348,26 +349,32 @@ async def handle_message(client, message):
         # Send initial "Asking AI..." message
         asking_message = await message.reply("⏳ Asking AI...")
         
+        # Prepare payload for relevance API
+        relevance_payload = {
+            "query": query,
+            "context": "quantum-inspired AI, robotics, automation, optimization, anomaly detection, pathfinding, reinforcement learning"
+        }
+        
+        # Call relevance API to check if the query is relevant
+        relevance_response = await call_api(RELEVANCE_API_URL, relevance_payload)
+        
         # Wait for 2 seconds before deleting the "Asking AI..." message
         await asyncio.sleep(2)
         await asking_message.delete()
 
-        # Simple check to determine if the query is quantum-related
-        quantum_keywords = [
-            'quantum', 'qubit', 'entanglement', 'superposition', 'grover', 'shor', 'qiskit',
-            'pennylane', 'robotics', 'automation', 'optimization', 'anomaly detection',
-            'pathfinding', 'reinforcement learning', 'rl', 'quantum-inspired', 'tensorflow quantum'
-        ]
-        is_quantum_related = any(keyword.lower() in query.lower() for keyword in quantum_keywords)
-
-        if is_quantum_related:
-            # Remove keywords "quantum" and "AI" (case-insensitive) for cleaner response
-            cleaned_query = re.sub(r'\bquantum\b|\bAI\b', '', query, flags=re.IGNORECASE).strip()
+        if relevance_response.get("is_relevant", False):
+            # Prepare payload for AI Q&A API
+            qa_payload = {"query": query, "chat_id": chat_id}
+            qa_response = await call_api(ANALYZE_API_URL, qa_payload)
             
-            # Simulated AI response for quantum-related queries
-            response = f"🤖 Response to your query: '{cleaned_query or query}'\n\nThis is a simulated quantum-inspired AI response for your question about {cleaned_query or 'the topic'}. For example, quantum-inspired algorithms like Grover's search can optimize robotic pathfinding by evaluating multiple paths probabilistically. Let me know how I can assist further!"
+            if "error" in qa_response:
+                response = f"🚫 Error processing query: {qa_response['error']}"
+            else:
+                # Extract the concise answer from API response
+                answer = qa_response.get("answer", "No answer provided.")
+                response = f"🤖 {answer}"
             
-            # Send the response as a new message with main menu
+            # Send the clean response with main menu
             await message.reply(response, reply_markup=get_main_menu())
         else:
             # Out-of-context response with inline buttons
