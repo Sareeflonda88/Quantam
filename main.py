@@ -27,7 +27,7 @@ RAPIDAPI_KEY = "661048094dmshd422f34bffd5dc0p1d4d56jsn3bbc61e1a120"
 RAPIDAPI_ENDPOINT = "/v1/chat/completions"
 
 # Welcome photo URL (publicly available quantum robotics image)
-WELCOME_PHOTO_URL = "https://example.com/quantum_robotics_image.jpg"  # Replace with a real image URL
+WELCOME_PHOTO_URL = "https://files.catbox.moe/u0ujif.jpg"  # Replace with a real image URL
 
 async def send_typing_action(chat_id):
     """Send typing action to indicate the bot is processing."""
