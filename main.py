@@ -8,8 +8,8 @@ BOT_TOKEN = "7038637559:AAFmvn2kmNuN2MukROcmc12B2jBgU8WuJGU"  # Get from @BotFat
 
 # RapidAPI credentials
 RAPID_API_KEY = "661048094dmshd422f34bffd5dc0p1d4d56jsn3bbc61e1a120"
-RAPID_API_HOST = "numbersapi.p.rapidapi.com"
-RAPID_API_BASE_URL = "https://numbersapi.p.rapidapi.com"
+RAPID_API_HOST = "okai.p.rapidapi.com"
+RAPID_API_BASE_URL = "https://okai.p.rapidapi.com/v1/chat/completions"
 
 # Initialize Pyrogram Client
 app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
