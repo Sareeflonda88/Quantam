@@ -35,6 +35,9 @@ Start by selecting an option below or use the menu commands.
 📚 Need help? Just ask!
 """
 
+# Simulated subscription storage (in-memory for simplicity)
+subscribed_users = set()
+
 # Function to check if the message is related to quantum robotics
 def is_quantum_robotics_question(message):
     keywords = ["quantum", "robotics", "quantum robotics", "qubit", "quantum computing", 
@@ -69,35 +72,140 @@ def call_okai_api(user_message):
     finally:
         conn.close()
 
-# Start command handler
-@app.on_message(filters.command("start"))
-async def start_command(client, message):
-    # Define inline keyboard with 7 buttons
-    keyboard = InlineKeyboardMarkup(
+# Back to Menu button
+def get_back_button():
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton("⬅️ Back to Menu", callback_data="back_to_menu")]]
+    )
+
+# Main menu keyboard
+def get_main_menu():
+    return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("Analyze Data", callback_data="analyze_data")],
-            [    InlineKeyboardButton("Optimize Tasks", callback_data="optimize_tasks")
+                InlineKeyboardButton("Analyze Data", callback_data="analyze_data"),
+                InlineKeyboardButton("Optimize Tasks", callback_data="optimize_tasks")
             ],
             [
-                InlineKeyboardButton("Robot Integration", callback_data="robot_integration")],
-            [   InlineKeyboardButton("AI Q&A", callback_data="ai_qa")
+                InlineKeyboardButton("Robot Integration", callback_data="robot_integration"),
+                InlineKeyboardButton("AI Q&A", callback_data="ai_qa")
             ],
             [
-                InlineKeyboardButton("Subscribe Reports", callback_data="subscribe_reports")],
-            [    InlineKeyboardButton("Get Chat ID", callback_data="get_chat_id")
+                InlineKeyboardButton("Subscribe Reports", callback_data="subscribe_reports"),
+                InlineKeyboardButton("Get Chat ID", callback_data="get_chat_id")
             ],
             [
                 InlineKeyboardButton("Webhook Secret", callback_data="webhook_secret")
             ]
         ]
     )
+
+# Start command handler
+@app.on_message(filters.command("start"))
+async def start_command(client, message):
+    await message.reply(WELCOME_MESSAGE, reply_markup=get_main_menu())
+
+# Unsubscribe command handler
+@app.on_message(filters.command("unsubscribe"))
+async def unsubscribe_command(client, message):
+    user_id = message.from_user.id
+    if user_id in subscribed_users:
+        subscribed_users.remove(user_id)
+        await message.reply("You have been unsubscribed from weekly reports.", reply_markup=get_back_button())
+    else:
+        await message.reply("You are not subscribed to any reports.", reply_markup=get_back_button())
+
+# Callback query handler
+@app.on_callback_query()
+async def handle_callback_query(client, callback_query):
+    data = callback_query.data
+    user_id = callback_query.from_user.id
     
-    # Send welcome message with buttons
-    await message.reply(WELCOME_MESSAGE, reply_markup=keyboard)
+    if data == "back_to_menu":
+        await callback_query.message.edit(WELCOME_MESSAGE, reply_markup=get_main_menu())
+        return
+
+    if data == "analyze_data":
+        message = """
+📈 Analyze Your Data (CSV)
+
+Upload a CSV file with your robot, factory, or sensor data.
+I'll detect anomalies and suggest optimizations using quantum-inspired AI!
+Example: timestamp,accel_x,accel_y,gyro,temperature
+
+After upload, you'll get a detailed summary.
+        """
+        await callback_query.message.edit(message, reply_markup=get_back_button())
+    
+    elif data == "optimize_tasks":
+        message = """
+🗺️ Pathfinding/Task Optimization
+
+Upload a CSV with a grid map (0=open, 1=wall) or task allocation table.
+I'll use quantum-inspired Grover search to suggest an efficient path or assignment!
+Send your file now.
+        """
+        await callback_query.message.edit(message, reply_markup=get_back_button())
+    
+    elif data == "robot_integration":
+        message = """
+🔗 Robot Integration
+
+Integrate your robot with our secure webhook for real-time analysis.
+Use /getid to get your chat ID and /webhooksecret for your webhook secret.
+        """
+        await callback_query.message.edit(message, reply_markup=get_back_button())
+    
+    elif data == "ai_qa":
+        message = """
+💬 Ask Anything about Quantum-Inspired AI or Robotics!
+
+Examples:
+- How does quantum-inspired RL help robots?
+- Can I optimize my warehouse robots?
+- Show me code with PennyLane/Qiskit!
+
+Type your question below:
+        """
+        await callback_query.message.edit(message, reply_markup=get_back_button())
+    
+    elif data == "subscribe_reports":
+        subscribed_users.add(user_id)
+        message = "Subscribed successfully! You'll receive weekly summaries and tips.\nUse /unsubscribe to stop reports anytime."
+        await callback_query.message.edit(message, reply_markup=get_back_button())
+    
+    elif data == "get_chat_id":
+        message = """
+🔑 Your Telegram chat ID:
+7204861404
+
+🔐 Your personal webhook secret:
+a322067e6fc98e49b68eeec945458d7e
+
+Your robot/service must send both these values for secure webhook data delivery.
+
+To regenerate your secret, use /regensecret
+        """
+        await callback_query.message.edit(message, reply_markup=get_back_button())
+    
+    elif data == "webhook_secret":
+        message = """
+🔑 Your Telegram chat ID:
+7204861404
+
+🔐 Your personal webhook secret:
+a322067e6fc98e49b68eeec945458d7e
+
+Your robot/service must send both these values for secure webhook data delivery.
+
+To regenerate your secret, use /regensecret
+        """
+        await callback_query.message.edit(message, reply_markup=get_back_button())
+
+    await callback_query.answer()
 
 # Handler for incoming messages
-@app.on_message(filters.text & filters.private & ~filters.command("start"))
+@app.on_message(filters.text & filters.private & ~filters.command(["start", "unsubscribe"]))
 async def handle_message(client, message):
     user_message = message.text
     try:
