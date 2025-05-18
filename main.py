@@ -76,7 +76,7 @@ async def text_handler(client, message):
 async def main():
     await app.start()
     print("Bot is running...")
-    await app.idle()
+    await idle()
 
 if __name__ == "__main__":
     asyncio.run(main())
