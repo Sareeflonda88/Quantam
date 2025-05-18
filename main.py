@@ -7,6 +7,10 @@ import secrets
 import asyncio
 import logging
 import re
+import pandas as pd
+import aiohttp
+import os
+import tempfile
 
 # Pyrogram bot configuration
 app = Client(
@@ -22,12 +26,17 @@ DATA_FILE = 'users.json'
 # Simulated subscription storage (in-memory for simplicity)
 subscribed_users = set()
 
-# Track user states (e.g., whether they are in ai_qa mode)
+# Track user states (e.g., whether they are in ai_qa, analyze_data, or optimize_tasks mode)
 user_states = {}
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Placeholder API endpoints (replace with real API)
+ANALYZE_API_URL = "https://api.quantro.ai/analyze"
+OPTIMIZE_API_URL = "https://api.quantro.ai/optimize"
+API_TIMEOUT = 10  # Seconds
 
 # Load and save user data
 def load_data():
@@ -81,6 +90,20 @@ def get_main_menu():
             [InlineKeyboardButton("🔑 My Chat ID & Webhook Secrets", callback_data="get_chat_id")]
         ]
     )
+
+# Async function to call API
+async def call_api(endpoint, payload):
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(endpoint, json=payload, timeout=API_TIMEOUT) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    logger.error(f"API error: Status {response.status}")
+                    return {"error": f"API returned status {response.status}"}
+        except aiohttp.ClientError as e:
+            logger.error(f"API request failed: {str(e)}")
+            return {"error": "Failed to connect to the API"}
 
 # Start command handler
 @app.on_message(filters.command("start"))
@@ -170,6 +193,8 @@ Example: timestamp,accel_x,accel_y,gyro,temperature
 
 After upload, you'll get a detailed summary.
         """
+        # Set user state to analyze_data mode
+        user_states[chat_id] = "analyze_data"
         await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "optimize_tasks":
@@ -180,6 +205,8 @@ Upload a CSV with a grid map (0=open, 1=wall) or task allocation table.
 I'll use quantum-inspired Grover search to suggest an efficient path or assignment!
 Send your file now.
         """
+        # Set user state to optimize_tasks mode
+        user_states[chat_id] = "optimize_tasks"
         await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "ai_qa":
@@ -230,21 +257,127 @@ To regenerate your secret, use /regensecret
 
     await callback_query.answer()
 
+# Handler for incoming CSV files
+@app.on_message(filters.document & filters.private)
+async def handle_document(client, message):
+    chat_id = str(message.chat.id)
+    state = user_states.get(chat_id)
+
+    if state not in ["analyze_data", "optimize_tasks"]:
+        await message.reply("Please select an option from the menu first.", reply_markup=get_main_menu())
+        return
+
+    # Check if the file is a CSV
+    if not message.document.file_name.lower().endswith('.csv'):
+        await message.reply("🚫 Please upload a valid CSV file.", reply_markup=get_back_button())
+        return
+
+    # Send processing message
+    processing_message = await message.reply("⏳ Processing your CSV file...")
+
+    # Download the file
+    try:
+        file_path = await message.document.download(destination_dir=tempfile.gettempdir())
+        # Read CSV with pandas
+        df = pd.read_csv(file_path)
+        csv_data = df.to_dict(orient='records')
+
+        # Prepare API payload
+        payload = {"data": csv_data, "chat_id": chat_id}
+
+        # Call the appropriate API based on state
+        if state == "analyze_data":
+            api_response = await call_api(ANALYZE_API_URL, payload)
+            if "error" in api_response:
+                response = f"🚫 Error analyzing data: {api_response['error']}"
+            else:
+                # Simulated API response format
+                anomalies = api_response.get("anomalies", [])
+                suggestions = api_response.get("suggestions", "No suggestions provided.")
+                response = f"""
+📈 Analysis Complete!
+
+**Anomalies Detected**: {len(anomalies)}
+{chr(10).join([f"- {a}" for a in anomalies[:5]]) if anomalies else "No anomalies found."}
+
+**Optimization Suggestions**:
+{suggestions}
+
+Upload another CSV or return to the menu.
+                """
+        elif state == "optimize_tasks":
+            api_response = await call_api(OPTIMIZE_API_URL, payload)
+            if "error" in api_response:
+                response = f"🚫 Error optimizing tasks: {api_response['error']}"
+            else:
+                # Simulated API response format
+                path = api_response.get("path", [])
+                assignments = api_response.get("assignments", "No assignments provided.")
+                response = f"""
+🗺️ Optimization Complete!
+
+**Optimal Path**: {path if path else "No path found."}
+**Task Assignments**: {assignments}
+
+Upload another CSV or return to the menu.
+                """
+
+        # Delete processing message after 2 seconds
+        await asyncio.sleep(2)
+        await processing_message.delete()
+
+        # Send response
+        await message.reply(response, reply_markup=get_main_menu())
+
+        # Clean up the downloaded file
+        os.remove(file_path)
+
+    except Exception as e:
+        logger.error(f"Error processing CSV: {str(e)}")
+        await processing_message.delete()
+        await message.reply("🚫 Error processing your CSV file. Please try again.", reply_markup=get_main_menu())
+
 # Handler for incoming text messages
 @app.on_message(filters.text & filters.private & ~filters.command(["start", "unsubscribe", "getid", "webhooksecret", "regensecret"]))
 async def handle_message(client, message):
     chat_id = str(message.chat.id)
     
     if user_states.get(chat_id) == "ai_qa":
-        # Remove keywords "quantum" and "AI" (case-insensitive)
-        query = message.text
-        cleaned_query = re.sub(r'\bquantum\b|\bAI\b', '', query, flags=re.IGNORECASE).strip()
+        query = message.text.strip()
         
-        # Simulate AI response (replace this with actual AI processing if needed)
-        response = f"🤖 Response to your query: '{cleaned_query}'\n\nThis is a simulated AI response for your question about {cleaned_query or 'the topic'}. Let me know how I can assist further!"
+        # Send initial "Asking AI..." message
+        asking_message = await message.reply("⏳ Asking AI...")
         
-        # Reply with only the main menu buttons
-        await message.reply(response, reply_markup=get_main_menu())
+        # Wait for 2 seconds before deleting the "Asking AI..." message
+        await asyncio.sleep(2)
+        await asking_message.delete()
+
+        # Simple check to determine if the query is quantum-related
+        quantum_keywords = [
+            'quantum', 'qubit', 'entanglement', 'superposition', 'grover', 'shor', 'qiskit',
+            'pennylane', 'robotics', 'automation', 'optimization', 'anomaly detection',
+            'pathfinding', 'reinforcement learning', 'rl', 'quantum-inspired', 'tensorflow quantum'
+        ]
+        is_quantum_related = any(keyword.lower() in query.lower() for keyword in quantum_keywords)
+
+        if is_quantum_related:
+            # Remove keywords "quantum" and "AI" (case-insensitive) for cleaner response
+            cleaned_query = re.sub(r'\bquantum\b|\bAI\b', '', query, flags=re.IGNORECASE).strip()
+            
+            # Simulated AI response for quantum-related queries
+            response = f"🤖 Response to your query: '{cleaned_query or query}'\n\nThis is a simulated quantum-inspired AI response for your question about {cleaned_query or 'the topic'}. For example, quantum-inspired algorithms like Grover's search can optimize robotic pathfinding by evaluating multiple paths probabilistically. Let me know how I can assist further!"
+            
+            # Send the response as a new message with main menu
+            await message.reply(response, reply_markup=get_main_menu())
+        else:
+            # Out-of-context response with inline buttons
+            response = "🚫 This question is out of context. Please ask about quantum-inspired AI, robotics, or related topics!"
+            await message.reply(
+                response,
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("⬅️ Back to Menu", callback_data="back_to_menu")]]
+                )
+            )
     else:
         # Default behavior: reply with welcome message and main menu
         await message.reply("Back to main menu:", reply_markup=get_main_menu())
