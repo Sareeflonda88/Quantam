@@ -83,15 +83,21 @@ def get_main_menu():
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("Analyze Data", callback_data="analyze_data"),
+                InlineKeyboardButton("Analyze Data", callback_data="analyze_data"),    
+            ], 
+            [
                 InlineKeyboardButton("Optimize Tasks", callback_data="optimize_tasks")
             ],
             [
                 InlineKeyboardButton("Robot Integration", callback_data="robot_integration"),
+            ], 
+            [
                 InlineKeyboardButton("AI Q&A", callback_data="ai_qa")
             ],
             [
                 InlineKeyboardButton("Subscribe Reports", callback_data="subscribe_reports"),
+            ], 
+            [    
                 InlineKeyboardButton("Get Chat ID", callback_data="get_chat_id")
             ],
             [
