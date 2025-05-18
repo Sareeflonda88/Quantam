@@ -9,7 +9,7 @@ import logging
 
 # Pyrogram bot configuration
 app = Client(
-    "OkaiBot",
+    name="OkaiBot",
     api_id=28362125,
     api_hash="c750e5872a2af51801d9b449983f4c84",
     bot_token="7038637559:AAFmvn2kmNuN2MukROcmc12B2jBgU8WuJGU"
@@ -103,13 +103,12 @@ def get_back_button():
 def get_main_menu():
     return InlineKeyboardMarkup(
         [
-            [],  # Empty first row
-            [InlineKeyboardButton("Analyze Data 📈", callback_data="analyze_data")],
-            [InlineKeyboardButton("Optimize Tasks 🗺️", callback_data="optimize_tasks")],
-            [InlineKeyboardButton("AI Q&A 💬", callback_data="ai_qa")],
-            [InlineKeyboardButton("Subscribe Reports 📬", callback_data="subscribe_reports")],
-            [InlineKeyboardButton("About Quantum-Inspired AI 💡", callback_data="about_quantum_ai")],
-            [InlineKeyboardButton("Get Chat ID & Secret 🔑", callback_data="get_chat_id")]
+            [InlineKeyboardButton("📈 Analyze Data (CSV)", callback_data="analyze_data")],
+            [InlineKeyboardButton("🗺️ Pathfinding/Optimization", callback_data="optimize_tasks")],
+            [InlineKeyboardButton("💬 Ask Quantum AI (AI)", callback_data="ai_qa")],
+            [InlineKeyboardButton("⏰ Subscribe For Weekly Reports", callback_data="subscribe_reports")],
+            [InlineKeyboardButton("💡 About Quantum-Inspired AI", callback_data="about_quantum_ai")],
+            [InlineKeyboardButton("🔑 My Chat ID & Webhook Secrets", callback_data="get_chat_id")]
         ]
     )
 
