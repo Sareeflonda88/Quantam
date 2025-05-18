@@ -1,19 +1,19 @@
 from pyrogram import Client, filters, idle
 from pyrogram.types import Message
 from pyrogram.enums import ChatAction
-import http.client
+import aiohttp
 import json
 import asyncio
 import logging
 
 # Set up logging for debugging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Telegram Bot Configuration
-# Replace 'YOUR_API_ID' and 'YOUR_API_HASH' with your Telegram API credentials
-# Obtain these from https://my.telegram.org
-# Replace 'YOUR_BOT_TOKEN' with your bot token from BotFather
 app = Client(
     "QuantumRoboticsBot",
     api_id="28362125",
@@ -27,45 +27,50 @@ RAPIDAPI_KEY = "661048094dmshd422f34bffd5dc0p1d4d56jsn3bbc61e1a120"
 RAPIDAPI_ENDPOINT = "/v1/chat/completions"
 
 # Welcome photo URL (publicly available quantum robotics image)
-WELCOME_PHOTO_URL = "https://files.catbox.moe/u0ujif.jpg"  # Replace with a real image URL
+WELCOME_PHOTO_URL = "https://files.catbox.moe/u0ujif.jpg"
 
 async def send_typing_action(chat_id):
     """Send typing action to indicate the bot is processing."""
-    await app.send_chat_action(chat_id, ChatAction.TYPING)
-    await asyncio.sleep(1)  # Simulate processing time
+    try:
+        await app.send_chat_action(chat_id, ChatAction.TYPING)
+        await asyncio.sleep(1)  # Simulate processing time
+    except Exception as e:
+        logger.error(f"Error sending typing action: {e}")
 
-def query_rapidapi(message: str) -> str:
+async def query_rapidapi(message: str) -> str:
     """Query the RapidAPI for a response to the user's message."""
     try:
-        conn = http.client.HTTPSConnection(RAPIDAPI_HOST)
-        payload = json.dumps({
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are a quantum robotics expert. Provide accurate and concise information about quantum robotics."
-                },
-                {
-                    "role": "user",
-                    "content": message
-                }
-            ]
-        })
-        headers = {
-            'x-rapidapi-key': RAPIDAPI_KEY,
-            'x-rapidapi-host': RAPIDAPI_HOST,
-            'Content-Type': "application/json"
-        }
-        conn.request("POST", RAPIDAPI_ENDPOINT, payload, headers)
-        res = conn.getresponse()
-        data = res.read()
-        response = json.loads(data.decode("utf-8"))
-        conn.close()
-        
-        # Extract the assistant's response
-        if "choices" in response and len(response["choices"]) > 0:
-            return response["choices"][0]["message"]["content"]
-        else:
-            return "Sorry, I couldn't process your request. Please try again."
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a quantum robotics expert. Provide accurate and concise information about quantum robotics."
+                    },
+                    {
+                        "role": "user",
+                        "content": message
+                    }
+                ]
+            }
+            headers = {
+                'x-rapidapi-key': RAPIDAPI_KEY,
+                'x-rapidapi-host': RAPIDAPI_HOST,
+                'Content-Type': "application/json"
+            }
+            async with session.post(
+                f"https://{RAPIDAPI_HOST}{RAPIDAPI_ENDPOINT}",
+                json=payload,
+                headers=headers
+            ) as response:
+                if response.status != 200:
+                    logger.error(f"RapidAPI returned status {response.status}")
+                    return "Sorry, I couldn't process your request. Please try again."
+                data = await response.json()
+                if "choices" in data and len(data["choices"]) > 0:
+                    return data["choices"][0]["message"]["content"]
+                logger.error("No choices found in RapidAPI response")
+                return "Sorry, I couldn't process your request. Please try again."
     except Exception as e:
         logger.error(f"Error querying RapidAPI: {e}")
         return "An error occurred while processing your request. Please try again later."
@@ -116,29 +121,23 @@ async def handle_text(client: Client, message: Message):
     await send_typing_action(message.chat.id)
     
     user_message = message.text
-    response = query_rapidapi(user_message)
-    await message.reply_text(response)
+    response = await query_rapidapi(user_message)
+    try:
+        await message.reply_text(response)
+    except Exception as e:
+        logger.error(f"Error replying to message: {e}")
+        await message.reply_text("Sorry, I couldn't send a response. Please try again.")
 
 # Error Handler
 @app.on_message(filters.all)
 async def error_handler(client: Client, message: Message):
-    """Catch any unhandled errors."""
+    """Catch any unhandled messages."""
     try:
         await message.reply_text("Sorry, I didn't understand that. Use /help for guidance.")
     except Exception as e:
-        logger.error(f"Error in message handler: {e}")
+        logger.error(f"Error in error handler: {e}")
 
 # Start the Bot
-async def main():
-    """Start the bot and keep it running."""
-    try:
-        await app.start()
-        logger.info("Quantum Robotics Bot is running...")
-        await app.idle()
-    except Exception as e:
-        logger.error(f"Error running bot: {e}")
-    finally:
-        await app.stop()
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    logger.info("Starting Quantum Robotics Bot...")
+    app.run()  # Use Pyrogram's built-in run method
