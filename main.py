@@ -6,6 +6,7 @@ import time
 import secrets
 import asyncio
 import logging
+import re
 
 # Pyrogram bot configuration
 app = Client(
@@ -20,6 +21,9 @@ DATA_FILE = 'users.json'
 
 # Simulated subscription storage (in-memory for simplicity)
 subscribed_users = set()
+
+# Track user states (e.g., whether they are in ai_qa mode)
+user_states = {}
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -93,6 +97,8 @@ async def start_command(client: Client, message: Message):
     else:
         message_text = WELCOME_MESSAGE
 
+    # Reset user state on /start
+    user_states[chat_id] = None
     await message.reply(message_text, reply_markup=get_main_menu())
 
 # Regen secret command handler
@@ -147,8 +153,10 @@ async def handle_callback_query(client, callback_query):
     user_id = callback_query.from_user.id
     chat_id = str(callback_query.from_user.id)
     users = load_data()
-    
+
     if data == "back_to_menu":
+        # Reset user state when going back to menu
+        user_states[chat_id] = None
         await callback_query.message.edit(WELCOME_MESSAGE, reply_markup=get_main_menu())
         return
 
@@ -163,7 +171,7 @@ Example: timestamp,accel_x,accel_y,gyro,temperature
 After upload, you'll get a detailed summary.
         """
         await callback_query.message.edit(message, reply_markup=get_back_button())
-    
+
     elif data == "optimize_tasks":
         message = """
 🗺️ Pathfinding/Task Optimization
@@ -173,7 +181,7 @@ I'll use quantum-inspired Grover search to suggest an efficient path or assignme
 Send your file now.
         """
         await callback_query.message.edit(message, reply_markup=get_back_button())
-    
+
     elif data == "ai_qa":
         message = """
 💬 Ask Anything about Quantum-Inspired AI or Robotics!
@@ -185,13 +193,15 @@ Examples:
 
 Type your question below:
         """
+        # Set user state to ai_qa mode
+        user_states[chat_id] = "ai_qa"
         await callback_query.message.edit(message, reply_markup=get_back_button())
-    
+
     elif data == "subscribe_reports":
         subscribed_users.add(user_id)
         message = "You have successfully subscribed"
         await callback_query.message.edit(message)
-    
+
     elif data == "about_quantum_ai":
         message = """
 💡 About Quantum-Inspired AI
@@ -204,7 +214,7 @@ Frameworks: TensorFlow Quantum, PennyLane, Qiskit
 For: robotics, automation, optimization, anomaly detection, etc.
         """
         await callback_query.message.edit(message, reply_markup=get_back_button())
-    
+
     elif data == "get_chat_id":
         secret = users.get(chat_id, {}).get('webhook_secret', 'Not set')
         message = f"""
@@ -223,8 +233,21 @@ To regenerate your secret, use /regensecret
 # Handler for incoming text messages
 @app.on_message(filters.text & filters.private & ~filters.command(["start", "unsubscribe", "getid", "webhooksecret", "regensecret"]))
 async def handle_message(client, message):
-    # Reply with main menu buttons for any non-command text message
-    await message.reply(WELCOME_MESSAGE, reply_markup=get_main_menu())
+    chat_id = str(message.chat.id)
+    
+    if user_states.get(chat_id) == "ai_qa":
+        # Remove keywords "quantum" and "AI" (case-insensitive)
+        query = message.text
+        cleaned_query = re.sub(r'\bquantum\b|\bAI\b', '', query, flags=re.IGNORECASE).strip()
+        
+        # Simulate AI response (replace this with actual AI processing if needed)
+        response = f"🤖 Response to your query: '{cleaned_query}'\n\nThis is a simulated AI response for your question about {cleaned_query or 'the topic'}. Let me know how I can assist further!"
+        
+        # Reply with only the main menu buttons
+        await message.reply(response, reply_markup=get_main_menu())
+    else:
+        # Default behavior: reply with welcome message and main menu
+        await message.reply(WELCOME_MESSAGE, reply_markup=get_main_menu())
 
 # Main function to run bot
 async def main():
