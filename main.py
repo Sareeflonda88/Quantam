@@ -1,5 +1,5 @@
 import os, re, aiohttp, asyncio
-from pyrogram import Client, filters
+from pyrogram import Client, filters, idle
 
 # Telegram Bot credentials (replace with your own)
 API_ID = "28362125"  # Get from my.telegram.org
