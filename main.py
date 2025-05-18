@@ -6,14 +6,14 @@ import time
 # Pyrogram bot configuration
 app = Client(
     "OkaiBot",
-    api_id=28362125,  # Replace with your API ID
-    api_hash="c750e5872a2af51801d9b449983f4c84",  # Replace with your API Hash
-    bot_token="7038637559:AAFmvn2kmNuN2MukROcmc12B2jBgU8WuJGU"  # Replace with your Bot Token
+    api_id=28362125,
+    api_hash="c750e5872a2af51801d9b449983f4c84",
+    bot_token="7038637559:AAFmvn2kmNuN2MukROcmc12B2jBgU8WuJGU"
 )
 
 # Function to call OKAI API
 def call_okai_api(user_message):
-    conn = http.client.HTTPSConnection(" okr.p.rapidapi.com")
+    conn = http.client.HTTPSConnection("okai.p.rapidapi.com")  # Fixed host URL
     payload = json.dumps({
         "messages": [{"role": "user", "content": user_message}]
     })
