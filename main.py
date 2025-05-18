@@ -1,8 +1,12 @@
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 import http.client
 import json
 import time
+import secrets
+import asyncio
+from aiohttp import web
+import logging
 
 # Pyrogram bot configuration
 app = Client(
@@ -11,6 +15,28 @@ app = Client(
     api_hash="c750e5872a2af51801d9b449983f4c84",
     bot_token="7038637559:AAFmvn2kmNuN2MukROcmc12B2jBgU8WuJGU"
 )
+
+# File to store user chat IDs and secrets
+DATA_FILE = 'users.json'
+
+# Simulated subscription storage (in-memory for simplicity)
+subscribed_users = set()
+
+# Logging setup
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load and save user data
+def load_data():
+    try:
+        with open(DATA_FILE, 'r') as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_data(data):
+    with open(DATA_FILE, 'w') as f:
+        json.dump(data, f, indent=2)
 
 # Welcome message
 WELCOME_MESSAGE = """
@@ -34,9 +60,6 @@ Start by selecting an option below or use the menu commands.
 
 📚 Need help? Just ask!
 """
-
-# Simulated subscription storage (in-memory for simplicity)
-subscribed_users = set()
 
 # Function to check if the message is related to quantum robotics
 def is_quantum_robotics_question(message):
@@ -62,7 +85,7 @@ def call_okai_api(user_message):
         res = conn.getresponse()
         data = res.read()
         response = json.loads(data.decode("utf-8"))
-        print("Raw API response:", response)  # Debug print
+        logger.info(f"Raw API response: {response}")
         if 'response' in response:
             return response['response']
         else:
@@ -83,21 +106,15 @@ def get_main_menu():
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("Analyze Data", callback_data="analyze_data"),    
-            ], 
-            [
+                InlineKeyboardButton("Analyze Data", callback_data="analyze_data"),
                 InlineKeyboardButton("Optimize Tasks", callback_data="optimize_tasks")
             ],
             [
                 InlineKeyboardButton("Robot Integration", callback_data="robot_integration"),
-            ], 
-            [
                 InlineKeyboardButton("AI Q&A", callback_data="ai_qa")
             ],
             [
                 InlineKeyboardButton("Subscribe Reports", callback_data="subscribe_reports"),
-            ], 
-            [    
                 InlineKeyboardButton("Get Chat ID", callback_data="get_chat_id")
             ],
             [
@@ -106,14 +123,85 @@ def get_main_menu():
         ]
     )
 
+# Webhook endpoint handler
+async def webhook_handler(request):
+    try:
+        data = await request.json()
+        chat_id = data.get('chat_id')
+        webhook_secret = data.get('webhook_secret')
+        payload = data.get('payload')
+
+        if not all([chat_id, webhook_secret, payload]):
+            return web.json_response({'error': 'Missing required fields'}, status=400)
+
+        users = load_data()
+        if chat_id not in users or users[chat_id]['webhook_secret'] != webhook_secret:
+            return web.json_response({'error': 'Invalid chat_id or webhook_secret'}, status=401)
+
+        # Process payload (example: send to user)
+        await app.send_message(
+            chat_id=int(chat_id),
+            text=f"Received webhook data:\n\n{json.dumps(payload, indent=2)}"
+        )
+        return web.json_response({'status': 'success'}, status=200)
+
+    except Exception as e:
+        logger.error(f"Webhook error: {str(e)}")
+        return web.json_response({'error': str(e)}, status=500)
+
 # Start command handler
 @app.on_message(filters.command("start"))
-async def start_command(client, message):
-    await message.reply(WELCOME_MESSAGE, reply_markup=get_main_menu())
+async def start_command(client: Client, message: Message):
+    chat_id = str(message.chat.id)
+    data = load_data()
+
+    if chat_id not in data:
+        # Generate a unique webhook secret
+        secret = secrets.token_hex(16)
+        data[chat_id] = {'webhook_secret': secret}
+        save_data(data)
+        message_text = f'✅ Welcome! Your webhook secret is:\n\n{secret}\n\nKeep it safe!\n\n{WELCOME_MESSAGE}'
+    else:
+        message_text = WELCOME_MESSAGE
+
+    await message.reply(message_text, reply_markup=get_main_menu())
+
+# Regen secret command handler
+@app.on_message(filters.command("regensecret"))
+async def regen_secret_command(client: Client, message: Message):
+    chat_id = str(message.chat.id)
+    data = load_data()
+
+    if chat_id in data:
+        # Generate a new webhook secret
+        new_secret = secrets.token_hex(16)
+        data[chat_id]['webhook_secret'] = new_secret
+        save_data(data)
+        await message.reply(f"🔑 Your new webhook secret is:\n\n{new_secret}\n\nKeep it safe!", reply_markup=get_back_button())
+    else:
+        await message.reply("🚫 You need to start the bot first with /start.", reply_markup=get_back_button())
+
+# Get ID command handler
+@app.on_message(filters.command("getid"))
+async def get_id_command(client: Client, message: Message):
+    chat_id = str(message.chat.id)
+    await message.reply(f"Your Telegram chat ID:\n\n{chat_id}", reply_markup=get_back_button())
+
+# Webhook secret command handler
+@app.on_message(filters.command("webhooksecret"))
+async def webhook_secret_command(client: Client, message: Message):
+    chat_id = str(message.chat.id)
+    data = load_data()
+
+    if chat_id in data:
+        secret = data[chat_id]['webhook_secret']
+        await message.reply(f"🔑 Your Telegram chat ID:\n{chat_id}\n\n🔐 Your webhook secret:\n{secret}\n\nUse /regensecret to regenerate.", reply_markup=get_back_button())
+    else:
+        await message.reply("🚫 You need to start the bot first with /start.", reply_markup=get_back_button())
 
 # Unsubscribe command handler
 @app.on_message(filters.command("unsubscribe"))
-async def unsubscribe_command(client, message):
+async def unsubscribe_command(client: Client, message: Message):
     user_id = message.from_user.id
     if user_id in subscribed_users:
         subscribed_users.remove(user_id)
@@ -126,6 +214,8 @@ async def unsubscribe_command(client, message):
 async def handle_callback_query(client, callback_query):
     data = callback_query.data
     user_id = callback_query.from_user.id
+    chat_id = str(callback_query.from_user.id)
+    users = load_data()
     
     if data == "back_to_menu":
         await callback_query.message.edit(WELCOME_MESSAGE, reply_markup=get_main_menu())
@@ -154,11 +244,14 @@ Send your file now.
         await callback_query.message.edit(message, reply_markup=get_back_button())
     
     elif data == "robot_integration":
-        message = """
+        secret = users.get(chat_id, {}).get('webhook_secret', 'Not set')
+        message = f"""
 🔗 Robot Integration
 
 Integrate your robot with our secure webhook for real-time analysis.
-Use /getid to get your chat ID and /webhooksecret for your webhook secret.
+Your Telegram chat ID: {chat_id}
+Your webhook secret: {secret}
+Use these in your robot's POST requests to the webhook URL.
         """
         await callback_query.message.edit(message, reply_markup=get_back_button())
     
@@ -181,12 +274,13 @@ Type your question below:
         await callback_query.message.edit(message, reply_markup=get_back_button())
     
     elif data == "get_chat_id":
-        message = """
+        secret = users.get(chat_id, {}).get('webhook_secret', 'Not set')
+        message = f"""
 🔑 Your Telegram chat ID:
-7204861404
+{chat_id}
 
 🔐 Your personal webhook secret:
-a322067e6fc98e49b68eeec945458d7e
+{secret}
 
 Your robot/service must send both these values for secure webhook data delivery.
 
@@ -195,12 +289,13 @@ To regenerate your secret, use /regensecret
         await callback_query.message.edit(message, reply_markup=get_back_button())
     
     elif data == "webhook_secret":
-        message = """
+        secret = users.get(chat_id, {}).get('webhook_secret', 'Not set')
+        message = f"""
 🔑 Your Telegram chat ID:
-7204861404
+{chat_id}
 
 🔐 Your personal webhook secret:
-a322067e6fc98e49b68eeec945458d7e
+{secret}
 
 Your robot/service must send both these values for secure webhook data delivery.
 
@@ -211,7 +306,7 @@ To regenerate your secret, use /regensecret
     await callback_query.answer()
 
 # Handler for incoming messages
-@app.on_message(filters.text & filters.private & ~filters.command(["start", "unsubscribe"]))
+@app.on_message(filters.text & filters.private & ~filters.command(["start", "unsubscribe", "getid", "webhooksecret", "regensecret"]))
 async def handle_message(client, message):
     user_message = message.text
     try:
@@ -227,6 +322,30 @@ async def handle_message(client, message):
     except Exception as e:
         await message.reply(f"An error occurred: {str(e)}")
 
-# Start the bot
-print("Bot is running...")
-app.run()
+# Start webhook server
+async def start_webhook_server():
+    webhook_app = web.Application()
+    webhook_app.router.add_post('/webhook', webhook_handler)
+    runner = web.AppRunner(webhook_app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8080)
+    await site.start()
+    logger.info("Webhook server started on http://0.0.0.0:8080/webhook")
+
+# Main function to run bot and webhook server
+async def main():
+    # Start webhook server
+    await start_webhook_server()
+    # Start Pyrogram client
+    await app.start()
+
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(main())
+        loop.run_forever()
+    except KeyboardInterrupt:
+        loop.run_until_complete(app.stop())
+        loop.close()
+    except Exception as e:
+        logger.error(f"Error in main loop: {str(e)}")
