@@ -1,16 +1,12 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
-import http.client
 import json
-import time
 import secrets
 import asyncio
 import logging
 import re
-import pandas as pd
-import aiohttp
+import requests
 import os
-import tempfile
 
 # Pyrogram bot configuration
 app = Client(
@@ -26,18 +22,17 @@ DATA_FILE = 'users.json'
 # Simulated subscription storage (in-memory for simplicity)
 subscribed_users = set()
 
-# Track user states (e.g., whether they are in ai_qa, analyze_data, or optimize_tasks mode)
+# Track user states (e.g., whether they are in ai_qa mode or waiting for CSV)
 user_states = {}
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Placeholder API endpoints (replace with real APIs)
-ANALYZE_API_URL = "https://api.quantro.ai/analyze"
-OPTIMIZE_API_URL = "https://api.quantro.ai/optimize"
-RELEVANCE_API_URL = "https://api.quantro.ai/relevance"
-API_TIMEOUT = 10  # Seconds
+# API configuration
+API_KEY = "661048094dmshd422f34bffd5dc0p1d4d56jsn3bbc61e1a120"  # Replace with your actual RapidAPI key
+BASE_URL = "https://okai.p.rapidapi.com/v1/chat"  # Replace with the actual API endpoint
+AI_MODEL = "quantum"  # Replace with the actual model name
 
 # Load and save user data
 def load_data():
@@ -92,19 +87,32 @@ def get_main_menu():
         ]
     )
 
-# Async function to call API
-async def call_api(endpoint, payload):
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(endpoint, json=payload, timeout=API_TIMEOUT) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    logger.error(f"API error: Status {response.status}")
-                    return {"error": f"API returned status {response.status}"}
-        except aiohttp.ClientError as e:
-            logger.error(f"API request failed: {str(e)}")
-            return {"error": "Failed to connect to the API"}
+# API request function
+async def make_api_request(query, model=AI_MODEL):
+    payload = {
+        "messages": [
+            {
+                "role": "user",
+                "content": query
+            }
+        ],
+        "stream": False,
+        "model": model
+    }
+    headers = {
+        "x-rapidapi-key": API_KEY,
+        "x-rapidapi-host": "okai.p.rapidapi.com",
+        "Content-Type": "application/json"
+    }
+    try:
+        response = requests.post(BASE_URL, json=payload, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("response", "Sorry, I couldn't fetch the data.")
+        else:
+            return f"Failed to fetch data from the API. Status code: {response.status_code}"
+    except Exception as e:
+        return f"An error occurred: {e}"
 
 # Start command handler
 @app.on_message(filters.command("start"))
@@ -194,8 +202,7 @@ Example: timestamp,accel_x,accel_y,gyro,temperature
 
 After upload, you'll get a detailed summary.
         """
-        # Set user state to analyze_data mode
-        user_states[chat_id] = "analyze_data"
+        user_states[chat_id] = "analyze_data"  # Set state to expect CSV
         await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "optimize_tasks":
@@ -206,8 +213,7 @@ Upload a CSV with a grid map (0=open, 1=wall) or task allocation table.
 I'll use quantum-inspired Grover search to suggest an efficient path or assignment!
 Send your file now.
         """
-        # Set user state to optimize_tasks mode
-        user_states[chat_id] = "optimize_tasks"
+        user_states[chat_id] = "optimize_tasks"  # Set state to expect CSV
         await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "ai_qa":
@@ -221,14 +227,13 @@ Examples:
 
 Type your question below:
         """
-        # Set user state to ai_qa mode
-        user_states[chat_id] = "ai_qa"
+        user_states[chat_id] = "ai_qa"  # Set state to expect AI question
         await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "subscribe_reports":
         subscribed_users.add(user_id)
-        message = "You have successfully subscribed"
-        await callback_query.message.edit(message)
+        message = "You have successfully subscribed to weekly reports!"
+        await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "about_quantum_ai":
         message = """
@@ -258,136 +263,67 @@ To regenerate your secret, use /regensecret
 
     await callback_query.answer()
 
-# Handler for incoming CSV files
+# Handler for incoming document (CSV files)
 @app.on_message(filters.document & filters.private)
 async def handle_document(client, message):
     chat_id = str(message.chat.id)
     state = user_states.get(chat_id)
 
     if state not in ["analyze_data", "optimize_tasks"]:
-        await message.reply("Please select an option from the menu first.", reply_markup=get_main_menu())
+        await message.reply("Please select an option first (e.g., Analyze Data or Pathfinding) before uploading a CSV.", reply_markup=get_main_menu())
         return
 
-    # Check if the file is a CSV
-    if not message.document.file_name.lower().endswith('.csv'):
-        await message.reply("🚫 Please upload a valid CSV file.", reply_markup=get_back_button())
+    if message.document.mime_type != "text/csv":
+        await message.reply("Please upload a valid CSV file.", reply_markup=get_back_button())
         return
 
-    # Send processing message
-    processing_message = await message.reply("⏳ Processing your CSV file...")
-
-    # Download the file
+    # Download the CSV file
+    file_path = await message.download()
     try:
-        file_path = await message.document.download(destination_dir=tempfile.gettempdir())
-        # Read CSV with pandas
-        df = pd.read_csv(file_path)
-        csv_data = df.to_dict(orient='records')
+        # Read CSV content
+        with open(file_path, 'r') as f:
+            csv_content = f.read()
 
-        # Prepare API payload
-        payload = {"data": csv_data, "chat_id": chat_id}
-
-        # Call the appropriate API based on state
+        # Prepare query based on state
         if state == "analyze_data":
-            api_response = await call_api(ANALYZE_API_URL, payload)
-            if "error" in api_response:
-                response = f"🚫 Error analyzing data: {api_response['error']}"
-            else:
-                # Simulated API response format
-                anomalies = api_response.get("anomalies", [])
-                suggestions = api_response.get("suggestions", "No suggestions provided.")
-                response = f"""
-📈 Analysis Complete!
-
-**Anomalies Detected**: {len(anomalies)}
-{chr(10).join([f"- {a}" for a in anomalies[:5]]) if anomalies else "No anomalies found."}
-
-**Optimization Suggestions**:
-{suggestions}
-
-Upload another CSV or return to the menu.
-                """
+            query = f"Analyze this CSV data for anomalies and optimizations:\n{csv_content}"
         elif state == "optimize_tasks":
-            api_response = await call_api(OPTIMIZE_API_URL, payload)
-            if "error" in api_response:
-                response = f"🚫 Error optimizing tasks: {api_response['error']}"
-            else:
-                # Simulated API response format
-                path = api_response.get("path", [])
-                assignments = api_response.get("assignments", "No assignments provided.")
-                response = f"""
-🗺️ Optimization Complete!
+            query = f"Optimize this CSV grid map or task list using quantum-inspired algorithms:\n{csv_content}"
 
-**Optimal Path**: {path if path else "No path found."}
-**Task Assignments**: {assignments}
+        # Make API request
+        reply = await make_api_request(query)
 
-Upload another CSV or return to the menu.
-                """
-
-        # Delete processing message after 2 seconds
-        await asyncio.sleep(2)
-        await processing_message.delete()
-
-        # Send response
-        await message.reply(response, reply_markup=get_main_menu())
-
-        # Clean up the downloaded file
-        os.remove(file_path)
-
+        # Reply with API response
+        await message.reply(reply, reply_markup=get_main_menu())
     except Exception as e:
-        logger.error(f"Error processing CSV: {str(e)}")
-        await processing_message.delete()
-        await message.reply("🚫 Error processing your CSV file. Please try again.", reply_markup=get_main_menu())
+        await message.reply(f"Error processing CSV: {e}", reply_markup=get_main_menu())
+    finally:
+        # Clean up downloaded file
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    # Reset user state
+    user_states[chat_id] = None
 
 # Handler for incoming text messages
 @app.on_message(filters.text & filters.private & ~filters.command(["start", "unsubscribe", "getid", "webhooksecret", "regensecret"]))
 async def handle_message(client, message):
     chat_id = str(message.chat.id)
-    
-    if user_states.get(chat_id) == "ai_qa":
-        query = message.text.strip()
-        
-        # Send initial "Asking AI..." message
-        asking_message = await message.reply("⏳ Asking AI...")
-        
-        # Prepare payload for relevance API
-        relevance_payload = {
-            "query": query,
-            "context": "quantum-inspired AI, robotics, automation, optimization, anomaly detection, pathfinding, reinforcement learning"
-        }
-        
-        # Call relevance API to check if the query is relevant
-        relevance_response = await call_api(RELEVANCE_API_URL, relevance_payload)
-        
-        # Wait for 2 seconds before deleting the "Asking AI..." message
-        await asyncio.sleep(2)
-        await asking_message.delete()
+    state = user_states.get(chat_id)
 
-        if relevance_response.get("is_relevant", False):
-            # Prepare payload for AI Q&A API
-            qa_payload = {"query": query, "chat_id": chat_id}
-            qa_response = await call_api(ANALYZE_API_URL, qa_payload)
-            
-            if "error" in qa_response:
-                response = f"🚫 Error processing query: {qa_response['error']}"
-            else:
-                # Extract the concise answer from API response
-                answer = qa_response.get("answer", "No answer provided.")
-                response = f"🤖 {answer}"
-            
-            # Send the clean response with main menu
-            await message.reply(response, reply_markup=get_main_menu())
-        else:
-            # Out-of-context response with inline buttons
-            response = "🚫 This question is out of context. Please ask about quantum-inspired AI, robotics, or related topics!"
-            await message.reply(
-                response,
-                reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("⬅️ Back to Menu", callback_data="back_to_menu")]]
-                )
-            )
+    if state == "ai_qa":
+        # Remove keywords "quantum" and "AI" (case-insensitive)
+        query = message.text
+        cleaned_query = re.sub(r'\bquantum\b|\bAI\b', '', query, flags=re.IGNORECASE).strip()
+
+        # Make API request
+        response = await make_api_request(cleaned_query or query)
+
+        # Reply with API response
+        await message.reply(response, reply_markup=get_main_menu())
     else:
         # Default behavior: reply with welcome message and main menu
-        await message.reply("Back to main menu:", reply_markup=get_main_menu())
+        await message.reply(WELCOME_MESSAGE, reply_markup=get_main_menu())
 
 # Main function to run bot
 async def main():
