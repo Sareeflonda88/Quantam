@@ -4,7 +4,7 @@ import json, secrets, asyncio, logging, re, requests, os, csv, io
 
 # Pyrogram bot configuration
 app = Client(
-    name="OkaiBot",
+    name="RoboFluxAI",
     api_id=28362125,
     api_hash="c750e5872a2af51801d9b449983f4c84",
     bot_token="7038637559:AAFmvn2kmNuN2MukROcmc12B2jBgU8WuJGU"
