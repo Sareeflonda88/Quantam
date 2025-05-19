@@ -89,24 +89,17 @@ def validate_csv(file_path, state):
 
 # Welcome message
 WELCOME_MESSAGE = """
-Welcome to RoboFlux Quantum-Inspired AI Bot!
+Welcome to RoboFlux AI — your command center for smart robotics, automation control, and AI-powered optimization.
 
-This assistant helps you make the most of quantum-inspired AI in robotics, automation, and data science.
-Here’s what you can do:
+Here’s what you can do inside RoboFlux:
 
-🔹 Analyze your CSV data — Upload your CSV logs for instant anomaly detection and optimization.
-🔹 Data Optimizer — Upload grid maps or task lists to get quantum-accelerated solutions.
-🔹 AI Queries — Ask anything about quantum-inspired AI, robotics, or implementation advice (powered by RoboFlux AI).
-🔹 System Insights — Subscribe for weekly summaries and actionable tips.
+📊 Analyze your robot or sensor data for performance issues and efficiency improvements.
+🗺️ Plan optimal movement paths and task assignments using advanced AI-powered pathfinding.
+🔗 Connect your robots securely via personal webhook credentials for direct system integration.
+💬 Ask AI anything about robotics, automation workflows, or AI implementation techniques.
+📑 Get scheduled system reports packed with insights and actionable recommendations.
 
-Start by selecting an option below or use the menu commands.
-
-➕ Tips:
-- Use /getid to find your chat ID
-- Use /webhooksecret to get or reset your secure webhook secret
-- Use /unsubscribe to stop reports anytime
-
-📚 Need help? Just ask!
+Choose an option from the menu below to get started. RoboFlux AI is ready to assist.
 """
 
 # Back to Menu button
@@ -128,7 +121,7 @@ def get_retry_button():
 def get_main_menu():
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("👨‍🔧 Robot Dashboard (CSV)", callback_data="analyze_data")],
+            [InlineKeyboardButton("👨‍🔧 Robot Dashboard", callback_data="analyze_data")],
             [InlineKeyboardButton("📊 Data Optimizer", callback_data="optimize_tasks")],
             [InlineKeyboardButton("🗺️ Path Planner", callback_data="ai_qa")],
             [InlineKeyboardButton("🎛️ System Insights", callback_data="subscribe_reports")],
