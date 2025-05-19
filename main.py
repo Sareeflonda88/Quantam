@@ -310,11 +310,11 @@ I'll use quantum-inspired Grover search to suggest an efficient path or assignme
 
     elif data == "ai_qa":
         message = """
-💬 Ask Anything about RoboFluxAI AI or Robotics!
+💬 Ask Anything about Quantum to RoboFluxAI AI or Robotics!
 
 Examples:
-- How does quantum-inspired RL help robots?
-- Can I optimize my warehouse robots?
+- What are the potential benefits of quantum robotics?
+- What are the challenges in developing quantum robotics?
 - Show me code with PennyLane/Qiskit!
 
 Type your question below:
