@@ -343,11 +343,9 @@ Type your question below:
 
     elif data == "about_quantum_ai":
         message = """
-🎛️ System Insights
+📨 AI Queries
 
-- Entangled state evaluation
-- Probabilistic feedback loops
-- Quantum-style pathfinding (Grover search)
+📩 Ask me anything about robotics AI, quantum algorithms, or PennyLane/Qiskit examples.
 
 Frameworks: TensorFlow Quantum, PennyLane, Qiskit
 For: robotics, automation, optimization, anomaly detection, etc.
