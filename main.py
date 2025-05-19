@@ -89,15 +89,15 @@ def validate_csv(file_path, state):
 
 # Welcome message
 WELCOME_MESSAGE = """
-Welcome to QuantroBotics Quantum-Inspired AI Bot!
+Welcome to RoboFlux Quantum-Inspired AI Bot!
 
 This assistant helps you make the most of quantum-inspired AI in robotics, automation, and data science.
 Here’s what you can do:
 
-🔹 Analyze your data — Upload your CSV logs for instant anomaly detection and optimization.
-🔹 Optimize paths/tasks — Upload grid maps or task lists to get quantum-accelerated solutions.
-🔹 AI Q&A — Ask anything about quantum-inspired AI, robotics, or implementation advice (powered by AI).
-🔹 Get scheduled reports — Subscribe for weekly summaries and actionable tips.
+🔹 Analyze your CSV data — Upload your CSV logs for instant anomaly detection and optimization.
+🔹 Data Optimizer — Upload grid maps or task lists to get quantum-accelerated solutions.
+🔹 AI Queries — Ask anything about quantum-inspired AI, robotics, or implementation advice (powered by RoboFlux AI).
+🔹 System Insights — Subscribe for weekly summaries and actionable tips.
 
 Start by selecting an option below or use the menu commands.
 
