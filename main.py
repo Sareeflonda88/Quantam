@@ -242,15 +242,9 @@ async def handle_callback_query(client, callback_query):
             message = """
 👨‍🔧 Robot Dashboard 
 
-Upload a CSV file with robot, factory, or sensor data.
-**Expected format**: timestamp,accel_x,accel_y,gyro,temperature
-**Example**:
-```
-timestamp,accel_x,accel_y,gyro,temperature
-2023-10-01 10:00:00,1.2,-0.5,0.1,25.3
-```
+🤖 Welcome to your Robot Dashboard!
 
-I'll detect anomalies and suggest optimizations using quantum-inspired AI!
+Select an option below:
             """
         elif state == "optimize_tasks":
             message = """
