@@ -7,7 +7,7 @@ app = Client(
     name="RoboFluxAI",
     api_id=28362125,
     api_hash="c750e5872a2af51801d9b449983f4c84",
-    bot_token="7038637559:AAFmvn2kmNuN2MukROcmc12B2jBgU8WuJGU"
+    bot_token="7705137466:AAEZbzei-auJWxOj165Gqwc2Kv9ckuP0WCg"
 )
 
 # File to store user chat IDs and secrets
