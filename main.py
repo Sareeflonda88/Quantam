@@ -247,7 +247,7 @@ async def handle_callback_query(client, callback_query):
         state = user_states.get(chat_id, "analyze_data")  # Default to analyze_data if state lost
         if state == "analyze_data":
             message = """
-📈 Analyze Your Data (CSV)
+👨‍🔧 Robot Dashboard (CSV)
 
 Upload a CSV file with robot, factory, or sensor data.
 **Expected format**: timestamp,accel_x,accel_y,gyro,temperature
@@ -261,7 +261,7 @@ I'll detect anomalies and suggest optimizations using quantum-inspired AI!
             """
         elif state == "optimize_tasks":
             message = """
-🗺️ Pathfinding/Task Optimization
+📊 Data Optimizer
 
 Upload a CSV with a grid map (0=open, 1=wall) or task allocation table.
 **Example grid map**:
@@ -277,7 +277,7 @@ I'll use quantum-inspired Grover search to suggest an efficient path or assignme
 
     if data == "analyze_data":
         message = """
-📈 Analyze Your Data (CSV)
+👨‍🔧 Robot Dashboard (CSV)
 
 Upload a CSV file with robot, factory, or sensor data.
 **Expected format**: timestamp,accel_x,accel_y,gyro,temperature
@@ -294,7 +294,7 @@ I'll detect anomalies and suggest optimizations using quantum-inspired AI!
 
     elif data == "optimize_tasks":
         message = """
-🗺️ Pathfinding/Task Optimization
+📊 Data Optimizer
 
 Upload a CSV with a grid map (0=open, 1=wall) or task allocation table.
 **Example grid map**:
@@ -310,7 +310,7 @@ I'll use quantum-inspired Grover search to suggest an efficient path or assignme
 
     elif data == "ai_qa":
         message = """
-💬 Ask Anything about Quantum-Inspired AI or Robotics!
+💬 Ask Anything about RoboFluxAI AI or Robotics!
 
 Examples:
 - How does quantum-inspired RL help robots?
@@ -336,14 +336,14 @@ Type your question below:
     elif data == "unsubscribe":
         if user_id in subscribed_users:
             subscribed_users.remove(user_id)
-            message = "You have been unsubscribed from weekly reports. 😢\nYou can resubscribe anytime from the main menu."
+            message = "You have been unsubscribed from weekly reports. \nYou can resubscribe anytime from the main menu."
         else:
             message = "You are not subscribed to any reports."
         await callback_query.message.edit(message, reply_markup=get_back_button())
 
     elif data == "about_quantum_ai":
         message = """
-💡 About Quantum-Inspired AI
+🎛️ System Insights
 
 - Entangled state evaluation
 - Probabilistic feedback loops
@@ -415,12 +415,12 @@ async def handle_document(client, message):
             query = f"Analyze this CSV data for anomalies and optimizations:\n{csv_content}"
             response = await make_api_request(query)
             await temp_message.delete()
-            await message.reply(f"📊 Data Analysis Results:\n{response}", reply_markup=get_main_menu())
+            await message.reply(f"👨‍🔧 Robot Dashboard:\n{response}", reply_markup=get_main_menu())
         elif state == "optimize_tasks":
             query = f"Optimize this CSV grid map or task list using quantum-inspired algorithms and provide the optimal path or task assignment:\n{csv_content}"
             response = await make_api_request(query)
             await temp_message.delete()
-            await message.reply(f"🗺️ Pathfinding/Optimization Results:\n{response}", reply_markup=get_main_menu())
+            await message.reply(f"📊 Data Optimizer Results:\n{response}", reply_markup=get_main_menu())
 
     except asyncio.TimeoutError:
         await temp_message.delete()
