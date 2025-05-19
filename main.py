@@ -128,12 +128,12 @@ def get_retry_button():
 def get_main_menu():
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("📈 Analyze Data (CSV)", callback_data="analyze_data")],
-            [InlineKeyboardButton("🗺️ Pathfinding/Optimization", callback_data="optimize_tasks")],
-            [InlineKeyboardButton("💬 Ask Quantum AI (AI)", callback_data="ai_qa")],
-            [InlineKeyboardButton("⏰ Subscribe For Weekly Reports", callback_data="subscribe_reports")],
-            [InlineKeyboardButton("💡 About Quantum-Inspired AI", callback_data="about_quantum_ai")],
-            [InlineKeyboardButton("🔑 My Chat ID & Webhook Secrets", callback_data="get_chat_id")]
+            [InlineKeyboardButton("👨‍🔧 Robot Dashboard (CSV)", callback_data="analyze_data")],
+            [InlineKeyboardButton("📊 Data Optimizer", callback_data="optimize_tasks")],
+            [InlineKeyboardButton("🗺️ Path Planner", callback_data="ai_qa")],
+            [InlineKeyboardButton("🎛️ System Insights", callback_data="subscribe_reports")],
+            [InlineKeyboardButton("📨 AI Queries", callback_data="about_quantum_ai")],
+            [InlineKeyboardButton("⚙️ Account Settings", callback_data="get_chat_id")]
         ]
     )
 
