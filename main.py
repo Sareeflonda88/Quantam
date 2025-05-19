@@ -240,7 +240,7 @@ async def handle_callback_query(client, callback_query):
         state = user_states.get(chat_id, "analyze_data")  # Default to analyze_data if state lost
         if state == "analyze_data":
             message = """
-👨‍🔧 Robot Dashboard (CSV)
+👨‍🔧 Robot Dashboard 
 
 Upload a CSV file with robot, factory, or sensor data.
 **Expected format**: timestamp,accel_x,accel_y,gyro,temperature
@@ -270,7 +270,7 @@ I'll use quantum-inspired Grover search to suggest an efficient path or assignme
 
     if data == "analyze_data":
         message = """
-👨‍🔧 Robot Dashboard (CSV)
+👨‍🔧 Robot Dashboard
 
 Upload a CSV file with robot, factory, or sensor data.
 **Expected format**: timestamp,accel_x,accel_y,gyro,temperature
@@ -289,14 +289,10 @@ I'll detect anomalies and suggest optimizations using quantum-inspired AI!
         message = """
 📊 Data Optimizer
 
-Upload a CSV with a grid map (0=open, 1=wall) or task allocation table.
-**Example grid map**:
-```
-0,0,1,0
-0,1,0,0
-1,0,0,0
-```
-I'll use quantum-inspired Grover search to suggest an efficient path or assignment!
+Upload sensor/robot/factory data for AI optimization.
+
+📤 Upload your CSV (columns: timestamp, sensor1, sensor2, etc.)
+I’ll analyze it using Quantum AI filters and send back insights!
         """
         user_states[chat_id] = "optimize_tasks"
         await callback_query.message.edit(message, reply_markup=get_back_button())
